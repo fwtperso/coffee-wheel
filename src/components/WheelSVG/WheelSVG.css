@@ -31,18 +31,6 @@
   stroke-width: 3;
 }
 
-.wheel-ring-enter {
-  opacity: 0;
-  transform: scale(0.95);
-  transform-origin: 300px 300px;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.wheel-ring-enter--visible {
-  opacity: 1;
-  transform: scale(1.0);
-}
-
 .wheel-search {
   display: flex;
   gap: 8px;
@@ -98,4 +86,13 @@
 .wheel-label {
   pointer-events: none;
   user-select: none;
+}
+
+.wheel-label--sub {
+  font-weight: 500;
+}
+
+.wheel-label--external {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 500;
 }

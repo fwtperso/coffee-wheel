@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import WheelSVG from './WheelSVG';
-import { searchNotes } from '../../data/flavorWheel';
+import { FLAVOR_WHEEL, searchNotes } from '../../data/flavorWheel';
 import type { TastingSession } from '../../types';
 
 function makeSession(overrides: Partial<TastingSession> = {}): TastingSession {
@@ -18,30 +18,37 @@ function makeSession(overrides: Partial<TastingSession> = {}): TastingSession {
 const noop = () => {};
 
 describe('WheelSVG', () => {
-  it('renders 9 family segments', () => {
+  it('renders 10 family segments', () => {
     render(
       <WheelSVG session={makeSession()} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
     );
     const families = [
       'family-fruity', 'family-floral', 'family-sweet',
       'family-nutty-cocoa', 'family-spices', 'family-roasted',
-      'family-green-vegetative', 'family-other', 'family-fermented',
+      'family-other', 'family-green-vegetative', 'family-sour-fermented',
+      'family-sour',
     ];
     families.forEach(id => {
       expect(screen.getByTestId(id)).toBeTruthy();
     });
   });
 
-  it('clicking a family expands it', async () => {
+  it('renders all subcategory segments visibly (3 rings always visible)', () => {
     render(
       <WheelSVG session={makeSession()} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
     );
-    // Before click, no subcategory visible
-    expect(screen.queryByTestId('sub-berry')).toBeNull();
-    // Click fruity family
-    await userEvent.click(screen.getByTestId('family-fruity'));
-    // Now subcategory should be visible
     expect(screen.getByTestId('sub-berry')).toBeTruthy();
+    expect(screen.getByTestId('sub-cocoa')).toBeTruthy();
+    expect(screen.getByTestId('sub-burnt')).toBeTruthy();
+  });
+
+  it('renders all note segments visibly (3 rings always visible)', () => {
+    render(
+      <WheelSVG session={makeSession()} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    expect(screen.getByTestId('note-blackberry')).toBeTruthy();
+    expect(screen.getByTestId('note-vanilla')).toBeTruthy();
+    expect(screen.getByTestId('note-cinnamon')).toBeTruthy();
   });
 
   it('clicking a leaf note calls onToggleNote', async () => {
@@ -49,9 +56,6 @@ describe('WheelSVG', () => {
     render(
       <WheelSVG session={makeSession()} onToggleNote={onToggle} onSetGuidedStep={noop} onSetReverseQuery={noop} />
     );
-    // Expand fruity family first
-    await userEvent.click(screen.getByTestId('family-fruity'));
-    // Click a leaf note
     await userEvent.click(screen.getByTestId('note-blackberry'));
     expect(onToggle).toHaveBeenCalledWith('blackberry');
   });
@@ -71,5 +75,26 @@ describe('WheelSVG', () => {
     );
     const roasted = screen.getByTestId('family-roasted');
     expect(roasted.classList.contains('wheel-segment--guided-dim')).toBe(true);
+  });
+
+  it('renders a white center circle', () => {
+    const { container } = render(
+      <WheelSVG session={makeSession()} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    const circle = container.querySelector('circle');
+    expect(circle).toBeTruthy();
+    expect(circle?.getAttribute('fill')).toBe('#fff');
+  });
+
+  it('FLAVOR_WHEEL has 10 families', () => {
+    expect(FLAVOR_WHEEL).toHaveLength(10);
+  });
+
+  it('total notes count is correct', () => {
+    const total = FLAVOR_WHEEL.reduce(
+      (sum, f) => sum + f.subCategories.reduce((s, sc) => s + sc.notes.length, 0),
+      0,
+    );
+    expect(total).toBeGreaterThan(50);
   });
 });

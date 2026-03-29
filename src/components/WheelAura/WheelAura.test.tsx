@@ -16,7 +16,7 @@ function makeSession(overrides: Partial<TastingSession> = {}): TastingSession {
 const noop = () => {};
 
 describe('WheelAura', () => {
-  it('renders all 9 family labels', () => {
+  it('renders all 10 family labels', () => {
     render(
       <WheelAura
         session={makeSession()}
@@ -28,7 +28,8 @@ describe('WheelAura', () => {
 
     const expectedLabels = [
       'Fruity', 'Floral', 'Sweet', 'Nutty/Cocoa',
-      'Spices', 'Roasted', 'Green/Veg', 'Other', 'Fermented',
+      'Spices', 'Roasted', 'Other', 'Green/Veg',
+      'Sour/Fermented', 'Sour',
     ];
 
     for (const label of expectedLabels) {

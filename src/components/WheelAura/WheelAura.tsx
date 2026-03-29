@@ -20,8 +20,8 @@ const AURA_RADIUS = 120;
 
 const GUIDED_PHASES: Record<GuidedStep, string[]> = {
   aroma: ['floral', 'fruity', 'green-vegetative', 'spices'],
-  flavor: ['sweet', 'nutty-cocoa', 'roasted', 'fermented'],
-  finish: ['other', 'roasted', 'spices'],
+  flavor: ['sweet', 'nutty-cocoa', 'roasted', 'sour-fermented'],
+  finish: ['sour', 'other', 'roasted', 'spices'],
 };
 
 const GUIDED_LABELS: { step: GuidedStep; label: string }[] = [

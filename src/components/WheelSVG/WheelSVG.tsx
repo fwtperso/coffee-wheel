@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { FLAVOR_WHEEL, searchNotes } from '../../data/flavorWheel';
 import type { TastingSession, GuidedStep } from '../../types';
 import './WheelSVG.css';
@@ -10,19 +10,20 @@ interface WheelSVGProps {
   onSetReverseQuery: (q: string) => void;
 }
 
-const CX = 300;
-const CY = 300;
+const CX = 350;
+const CY = 350;
 const R_INNER_START = 80;
-const R_INNER_END = 140;
-const R_MID_START = 140;
-const R_MID_END = 210;
-const R_OUTER_START = 210;
-const R_OUTER_END = 280;
+const R_INNER_END = 150;
+const R_MID_START = 150;
+const R_MID_END = 220;
+const R_OUTER_START = 220;
+const R_OUTER_END = 290;
+const R_LABEL = 310;
 
 const GUIDED_MAP: Record<GuidedStep, string[]> = {
   aroma: ['fruity', 'floral', 'green-vegetative'],
   flavor: ['sweet', 'nutty-cocoa', 'spices', 'roasted'],
-  finish: ['fermented', 'other'],
+  finish: ['sour-fermented', 'sour', 'other'],
 };
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
@@ -43,12 +44,6 @@ function midAngle(startDeg: number, endDeg: number) {
   return (startDeg + endDeg) / 2;
 }
 
-function labelPos(cx: number, cy: number, r1: number, r2: number, startDeg: number, endDeg: number) {
-  const r = (r1 + r2) / 2;
-  const angle = midAngle(startDeg, endDeg);
-  return polarToCartesian(cx, cy, r, angle);
-}
-
 function lightenColor(hex: string, factor: number): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -59,13 +54,15 @@ function lightenColor(hex: string, factor: number): string {
   return `#${lr.toString(16).padStart(2, '0')}${lg.toString(16).padStart(2, '0')}${lb.toString(16).padStart(2, '0')}`;
 }
 
-function truncateLabel(text: string, maxLen: number): string {
-  return text.length > maxLen ? text.slice(0, maxLen - 1) + '\u2026' : text;
+function labelRotation(angleDeg: number): number {
+  const normalized = ((angleDeg % 360) + 360) % 360;
+  if (normalized > 90 && normalized < 270) {
+    return angleDeg + 180;
+  }
+  return angleDeg;
 }
 
 export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSetReverseQuery }: WheelSVGProps) {
-  const [expandedFamily, setExpandedFamily] = useState<string | null>(null);
-
   const matchingNoteIds = useMemo(() => {
     if (!session.reverseQuery) return new Set<string>();
     return new Set(searchNotes(session.reverseQuery).map(n => n.id));
@@ -75,7 +72,12 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
   const hasSearch = session.reverseQuery.length > 0;
   const relevantFamilies = GUIDED_MAP[session.guidedStep];
 
-  const familyAngleSize = 360 / FLAVOR_WHEEL.length;
+  const totalNotes = FLAVOR_WHEEL.reduce(
+    (sum, f) => sum + f.subCategories.reduce((s2, sc) => s2 + sc.notes.length, 0),
+    0,
+  );
+
+  let familyAngleOffset = 0;
 
   return (
     <div>
@@ -94,86 +96,95 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
         )}
       </div>
 
-      <svg viewBox="0 0 600 600" width="100%" style={{ maxWidth: 600, display: 'block', margin: '0 auto' }}>
+      <svg viewBox="0 0 700 700" width="100%" style={{ maxWidth: 700, display: 'block', margin: '0 auto' }}>
         <defs>
           <filter id="glow-selected">
             <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#fff" floodOpacity="0.8" />
           </filter>
         </defs>
 
-        {FLAVOR_WHEEL.map((family, fi) => {
-          const startDeg = fi * familyAngleSize;
-          const endDeg = startDeg + familyAngleSize;
-          const isExpanded = expandedFamily === family.id;
+        {/* White center circle */}
+        <circle cx={CX} cy={CY} r={R_INNER_START} fill="#fff" />
+
+        {FLAVOR_WHEEL.map((family) => {
+          const familyNoteCount = family.subCategories.reduce((s, sc) => s + sc.notes.length, 0);
+          const familySpan = (familyNoteCount / totalNotes) * 360;
+          const familyStart = familyAngleOffset;
+          const familyEnd = familyAngleOffset + familySpan;
+          familyAngleOffset = familyEnd;
+
           const guidedDim = !relevantFamilies.includes(family.id);
-          const lp = labelPos(CX, CY, R_INNER_START, R_INNER_END, startDeg, endDeg);
+          const familyMidAngle = midAngle(familyStart, familyEnd);
+          const familyLabelPos = polarToCartesian(CX, CY, (R_INNER_START + R_INNER_END) / 2, familyMidAngle);
 
-          const subCategories = family.subCategories;
-          const totalLeaves = subCategories.reduce((sum, sc) => sum + sc.notes.length, 0);
-
-          let subAngleOffset = startDeg;
+          let subAngleOffset = familyStart;
 
           return (
             <g key={family.id}>
+              {/* Inner ring: family segment */}
               <path
                 data-testid={`family-${family.id}`}
                 className={`wheel-segment${guidedDim ? ' wheel-segment--guided-dim' : ''}`}
-                d={arcPath(CX, CY, R_INNER_START, R_INNER_END, startDeg, endDeg)}
+                d={arcPath(CX, CY, R_INNER_START, R_INNER_END, familyStart, familyEnd)}
                 fill={family.color}
                 stroke="#fff"
                 strokeWidth={2}
-                onClick={() => setExpandedFamily(isExpanded ? null : family.id)}
               />
               <text
                 className="wheel-label"
-                x={lp.x}
-                y={lp.y}
+                x={familyLabelPos.x}
+                y={familyLabelPos.y}
                 textAnchor="middle"
                 dominantBaseline="central"
                 fill="#fff"
                 fontWeight="bold"
-                fontSize={11}
+                fontSize={12}
+                transform={`rotate(${labelRotation(familyMidAngle - 90)}, ${familyLabelPos.x}, ${familyLabelPos.y})`}
               >
                 {family.label}
               </text>
 
-              {isExpanded && subCategories.map((sub) => {
-                const subSpan = (sub.notes.length / totalLeaves) * familyAngleSize;
+              {/* Middle ring: sub-category segments */}
+              {family.subCategories.map((sub) => {
+                const subSpan = (sub.notes.length / totalNotes) * 360;
                 const subStart = subAngleOffset;
                 const subEnd = subAngleOffset + subSpan;
                 subAngleOffset = subEnd;
 
-                const subLp = labelPos(CX, CY, R_MID_START, R_MID_END, subStart, subEnd);
+                const subMidAngle = midAngle(subStart, subEnd);
+                const subLabelPos = polarToCartesian(CX, CY, (R_MID_START + R_MID_END) / 2, subMidAngle);
                 const subColor = lightenColor(family.color, 0.25);
 
                 const noteAngleSize = subSpan / sub.notes.length;
 
                 return (
-                  <g key={sub.id} className="wheel-ring-enter wheel-ring-enter--visible">
+                  <g key={sub.id}>
                     <path
                       data-testid={`sub-${sub.id}`}
-                      className="wheel-segment"
+                      className={`wheel-segment${guidedDim ? ' wheel-segment--guided-dim' : ''}`}
                       d={arcPath(CX, CY, R_MID_START, R_MID_END, subStart, subEnd)}
                       fill={subColor}
                       stroke="#fff"
                       strokeWidth={2}
                     />
                     <text
-                      className="wheel-label"
-                      x={subLp.x}
-                      y={subLp.y}
+                      className="wheel-label wheel-label--sub"
+                      x={subLabelPos.x}
+                      y={subLabelPos.y}
                       textAnchor="middle"
                       dominantBaseline="central"
                       fill="#fff"
                       fontSize={9}
+                      transform={`rotate(${labelRotation(subMidAngle - 90)}, ${subLabelPos.x}, ${subLabelPos.y})`}
                     >
-                      {truncateLabel(sub.label, 12)}
+                      {sub.label}
                     </text>
 
+                    {/* Outer ring: note segments + external labels */}
                     {sub.notes.map((note, ni) => {
                       const noteStart = subStart + ni * noteAngleSize;
                       const noteEnd = noteStart + noteAngleSize;
-                      const noteLp = labelPos(CX, CY, R_OUTER_START, R_OUTER_END, noteStart, noteEnd);
+                      const noteMidAngle = midAngle(noteStart, noteEnd);
                       const noteColor = lightenColor(family.color, 0.4);
                       const isSelected = session.selectedNoteIds.includes(note.id);
                       const isMatch = hasSearch && matchingNoteIds.has(note.id);
@@ -184,6 +195,14 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
                       if (isSelected) cls += ' wheel-segment--selected';
                       if (isDimmedBySelection || isDimmedBySearch) cls += ' wheel-segment--dimmed';
                       if (isMatch) cls += ' wheel-segment--highlighted';
+                      if (guidedDim) cls += ' wheel-segment--guided-dim';
+
+                      const externalLabelPos = polarToCartesian(CX, CY, R_LABEL, noteMidAngle);
+                      const rawRotation = noteMidAngle - 90;
+                      const normalized = ((noteMidAngle % 360) + 360) % 360;
+                      const flipLabel = normalized > 90 && normalized < 270;
+                      const textRotation = flipLabel ? rawRotation + 180 : rawRotation;
+                      const textAnchor = flipLabel ? 'end' : 'start';
 
                       return (
                         <g key={note.id}>
@@ -198,15 +217,16 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
                             onClick={() => onToggleNote(note.id)}
                           />
                           <text
-                            className="wheel-label"
-                            x={noteLp.x}
-                            y={noteLp.y}
-                            textAnchor="middle"
+                            className="wheel-label wheel-label--external"
+                            x={externalLabelPos.x}
+                            y={externalLabelPos.y}
+                            textAnchor={textAnchor}
                             dominantBaseline="central"
-                            fill="#fff"
-                            fontSize={7}
+                            fill={family.color}
+                            fontSize={10}
+                            transform={`rotate(${textRotation}, ${externalLabelPos.x}, ${externalLabelPos.y})`}
                           >
-                            {truncateLabel(note.label, 10)}
+                            {note.label}
                           </text>
                         </g>
                       );
