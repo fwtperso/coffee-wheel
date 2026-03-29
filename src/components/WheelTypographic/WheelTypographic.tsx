@@ -14,7 +14,7 @@ interface WheelTypographicProps {
 const GUIDED_MAP: Record<GuidedStep, string[]> = {
   aroma: ['fruity', 'floral', 'green-vegetative'],
   flavor: ['sweet', 'nutty-cocoa', 'spices', 'roasted'],
-  finish: ['fermented', 'other'],
+  finish: ['sour-fermented', 'sour', 'other'],
 };
 
 const STEP_HEADERS: Record<GuidedStep, string> = {
