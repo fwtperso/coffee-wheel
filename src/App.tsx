@@ -1,5 +1,6 @@
 import { useTastingSession } from './hooks/useTastingSession';
 import WheelSVG from './components/WheelSVG';
+import WheelAura from './components/WheelAura';
 import type { VisualMode } from './types';
 
 const MODE_LABELS: Record<VisualMode, string> = {
@@ -39,7 +40,7 @@ export default function App() {
 
       <div style={{ border: '1px solid #eee', borderRadius: 12, padding: 32, minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {session.mode === 'wheel' && <WheelSVG session={session} onToggleNote={toggleNote} onSetGuidedStep={setGuidedStep} onSetReverseQuery={setReverseQuery} />}
-        {session.mode === 'aura' && <div style={{ color: '#999' }}>Aura Effect — coming soon</div>}
+        {session.mode === 'aura' && <WheelAura session={session} onToggleNote={toggleNote} onSetGuidedStep={setGuidedStep} onSetReverseQuery={setReverseQuery} />}
         {session.mode === 'type' && <div style={{ color: '#999' }}>Typographic Mode — coming soon</div>}
       </div>
     </div>
