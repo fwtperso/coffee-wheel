@@ -1,0 +1,1 @@
+export { WheelTypographic } from './WheelTypographic';
