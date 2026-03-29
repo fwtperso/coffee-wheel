@@ -1,4 +1,5 @@
 import { useTastingSession } from './hooks/useTastingSession';
+import WheelSVG from './components/WheelSVG';
 import type { VisualMode } from './types';
 
 const MODE_LABELS: Record<VisualMode, string> = {
@@ -8,7 +9,7 @@ const MODE_LABELS: Record<VisualMode, string> = {
 };
 
 export default function App() {
-  const { session, setMode } = useTastingSession();
+  const { session, toggleNote, setGuidedStep, setReverseQuery, setMode } = useTastingSession();
 
   return (
     <div style={{ fontFamily: 'sans-serif', maxWidth: 900, margin: '0 auto', padding: 24 }}>
@@ -37,7 +38,7 @@ export default function App() {
       </div>
 
       <div style={{ border: '1px solid #eee', borderRadius: 12, padding: 32, minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {session.mode === 'wheel' && <div style={{ color: '#999' }}>Animated SVG Wheel — coming soon</div>}
+        {session.mode === 'wheel' && <WheelSVG session={session} onToggleNote={toggleNote} onSetGuidedStep={setGuidedStep} onSetReverseQuery={setReverseQuery} />}
         {session.mode === 'aura' && <div style={{ color: '#999' }}>Aura Effect — coming soon</div>}
         {session.mode === 'type' && <div style={{ color: '#999' }}>Typographic Mode — coming soon</div>}
       </div>
