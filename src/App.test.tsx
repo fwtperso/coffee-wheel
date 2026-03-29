@@ -14,6 +14,6 @@ describe('App mode switcher', () => {
   it('switches to aura mode on click', async () => {
     render(<App />);
     await userEvent.click(screen.getByText('Aura Effect'));
-    expect(screen.getByText('Aura Effect — coming soon')).toBeTruthy();
+    expect(screen.getByText('Select notes to build your signature')).toBeTruthy();
   });
 });
