@@ -99,6 +99,42 @@ describe('WheelSVG', () => {
   });
 });
 
+describe('WheelSVG branch highlight', () => {
+  it('selecting a note adds --branch-active to its family segment', () => {
+    render(
+      <WheelSVG session={makeSession({ selectedNoteIds: ['blackberry'] })} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    const familyEl = screen.getByTestId('family-fruity');
+    expect(familyEl.classList.contains('wheel-segment--branch-active')).toBe(true);
+  });
+
+  it('selecting a note adds --branch-active to its sub-category segment', () => {
+    render(
+      <WheelSVG session={makeSession({ selectedNoteIds: ['blackberry'] })} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    const subEl = screen.getByTestId('sub-berry');
+    expect(subEl.classList.contains('wheel-segment--branch-active')).toBe(true);
+  });
+
+  it('selecting a note dims family segments that do not contain it', () => {
+    render(
+      <WheelSVG session={makeSession({ selectedNoteIds: ['blackberry'] })} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    const floralEl = screen.getByTestId('family-floral');
+    expect(floralEl.classList.contains('wheel-segment--dimmed')).toBe(true);
+  });
+
+  it('deselecting all notes removes all --dimmed from family segments', () => {
+    render(
+      <WheelSVG session={makeSession({ selectedNoteIds: [] })} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    const families = FLAVOR_WHEEL.map(f => screen.getByTestId(`family-${f.id}`));
+    families.forEach(el => {
+      expect(el.classList.contains('wheel-segment--dimmed')).toBe(false);
+    });
+  });
+});
+
 describe('WheelSVG drag-to-spin', () => {
   it('renders SVG with grab cursor class', () => {
     render(
