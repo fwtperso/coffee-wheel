@@ -44,3 +44,13 @@
   font-family: 'Helvetica Neue', Arial, sans-serif;
   font-weight: 500;
 }
+
+.wheel-svg--grab {
+  cursor: grab;
+  touch-action: none;
+}
+
+.wheel-svg--grabbing {
+  cursor: grabbing;
+  touch-action: none;
+}

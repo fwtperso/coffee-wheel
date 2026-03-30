@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { FLAVOR_WHEEL, searchNotes } from '../../data/flavorWheel';
 import type { TastingSession, GuidedStep } from '../../types';
 import './WheelSVG.css';
@@ -62,7 +62,153 @@ function labelRotation(angleDeg: number): number {
   return angleDeg;
 }
 
+const DECAY_FACTOR = 0.95;
+const MIN_VELOCITY = 0.05;
+const CLICK_THRESHOLD_DEG = 3;
+const VELOCITY_HISTORY_SIZE = 5;
+const MS_PER_FRAME_60FPS = 16;
+
+interface VelocitySample {
+  deg: number;
+  dt: number;
+}
+
+function svgAngle(e: PointerEvent, svg: SVGSVGElement): number {
+  const ctm = svg.getScreenCTM?.();
+  if (!ctm || !svg.createSVGPoint) {
+    return Math.atan2(e.clientY - CY, e.clientX - CX) * (180 / Math.PI);
+  }
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX;
+  pt.y = e.clientY;
+  const p = pt.matrixTransform(ctm.inverse());
+  return Math.atan2(p.y - CY, p.x - CX) * (180 / Math.PI);
+}
+
+function wrapDelta(delta: number): number {
+  return ((delta + 540) % 360) - 180;
+}
+
+function useWheelSpin() {
+  const [rotationDeg, setRotationDeg] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const rotationRef = useRef(0);
+  const dragStartRotation = useRef(0);
+  const lastAngle = useRef(0);
+  const lastTimestamp = useRef(0);
+  const velocityHistory = useRef<VelocitySample[]>([]);
+  const rafRef = useRef<number>(0);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const draggingRef = useRef(false);
+  const wasDragSignificant = useRef(false);
+
+  const cancelCoast = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+  }, []);
+
+  const startCoast = useCallback((initialVelocity: number) => {
+    let vel = initialVelocity;
+    let currentRot = rotationRef.current;
+    function frame() {
+      vel *= DECAY_FACTOR;
+      currentRot += vel;
+      rotationRef.current = currentRot;
+      setRotationDeg(currentRot);
+      if (Math.abs(vel) > MIN_VELOCITY) {
+        rafRef.current = requestAnimationFrame(frame);
+      } else {
+        rafRef.current = 0;
+      }
+    }
+    rafRef.current = requestAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => cancelCoast, [cancelCoast]);
+
+  const onPointerDown = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    cancelCoast();
+    if (svg.setPointerCapture) svg.setPointerCapture(e.pointerId);
+    const angle = svgAngle(e.nativeEvent, svg);
+    dragStartRotation.current = rotationRef.current;
+    lastAngle.current = angle;
+    lastTimestamp.current = e.timeStamp;
+    velocityHistory.current = [];
+    draggingRef.current = true;
+    wasDragSignificant.current = false;
+    setIsDragging(true);
+  }, [cancelCoast]);
+
+  const onPointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
+    if (!draggingRef.current) return;
+    const svg = svgRef.current;
+    if (!svg) return;
+    const currentAngle = svgAngle(e.nativeEvent, svg);
+    const delta = wrapDelta(currentAngle - lastAngle.current);
+    const newRot = rotationRef.current + delta;
+    rotationRef.current = newRot;
+    setRotationDeg(newRot);
+    const dt = e.timeStamp - lastTimestamp.current;
+    velocityHistory.current.push({ deg: delta, dt });
+    if (velocityHistory.current.length > VELOCITY_HISTORY_SIZE) {
+      velocityHistory.current.shift();
+    }
+    lastAngle.current = currentAngle;
+    lastTimestamp.current = e.timeStamp;
+  }, []);
+
+  const onPointerUp = useCallback(() => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    setIsDragging(false);
+    const totalDelta = Math.abs(
+      rotationRef.current - dragStartRotation.current,
+    );
+    if (totalDelta >= CLICK_THRESHOLD_DEG) {
+      wasDragSignificant.current = true;
+      const hist = velocityHistory.current;
+      if (hist.length > 0) {
+        const avgVel =
+          hist.reduce((s, v) => s + v.deg / (v.dt || MS_PER_FRAME_60FPS), 0) /
+          hist.length;
+        startCoast(avgVel * MS_PER_FRAME_60FPS);
+      }
+    }
+  }, [startCoast]);
+
+  const shouldSuppressClick = useCallback(() => {
+    const was = wasDragSignificant.current;
+    wasDragSignificant.current = false;
+    return was;
+  }, []);
+
+  return {
+    rotationDeg,
+    isDragging,
+    svgRef,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    shouldSuppressClick,
+  };
+}
+
 export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSetReverseQuery }: WheelSVGProps) {
+  const {
+    rotationDeg,
+    isDragging,
+    svgRef,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    shouldSuppressClick,
+  } = useWheelSpin();
+
   const matchingNoteIds = useMemo(() => {
     if (!session.reverseQuery) return new Set<string>();
     return new Set(searchNotes(session.reverseQuery).map(n => n.id));
@@ -77,17 +223,34 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
     0,
   );
 
+  const handleNoteClick = useCallback((noteId: string) => {
+    if (shouldSuppressClick()) return;
+    onToggleNote(noteId);
+  }, [shouldSuppressClick, onToggleNote]);
+
   let familyAngleOffset = 0;
 
   return (
     <div style={{ width: '100%', height: '100%' }}>
-      <svg viewBox="0 0 700 700" width="100%" height="100%">
+      <svg
+        ref={svgRef}
+        viewBox="0 0 700 700"
+        width="100%"
+        height="100%"
+        className={isDragging ? 'wheel-svg--grabbing' : 'wheel-svg--grab'}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        data-testid="wheel-svg"
+      >
         <defs>
           <filter id="glow-selected">
             <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#fff" floodOpacity="0.8" />
           </filter>
         </defs>
 
+        <g transform={`rotate(${rotationDeg}, ${CX}, ${CY})`}>
         {/* White center circle */}
         <circle cx={CX} cy={CY} r={R_INNER_START} fill="#fff" />
 
@@ -199,7 +362,7 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
                             stroke="#fff"
                             strokeWidth={2}
                             filter={isSelected ? 'url(#glow-selected)' : undefined}
-                            onClick={() => onToggleNote(note.id)}
+                            onClick={() => handleNoteClick(note.id)}
                           />
                           <text
                             className="wheel-label wheel-label--external"
@@ -222,6 +385,7 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
             </g>
           );
         })}
+        </g>
       </svg>
     </div>
   );
