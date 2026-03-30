@@ -94,29 +94,9 @@ export function WheelTypographic({
 
   return (
     <div className="wt-container">
-      <input
-        className="wt-search"
-        type="text"
-        placeholder="Search flavors..."
-        value={session.reverseQuery}
-        onChange={(e) => onSetReverseQuery(e.target.value)}
-      />
-
       <h2 className="wt-step-header">
         {STEP_HEADERS[session.guidedStep]}
       </h2>
-
-      <div className="wt-step-tabs">
-        {STEP_ORDER.map((step) => (
-          <button
-            key={step}
-            className={`wt-step-tab${session.guidedStep === step ? ' wt-step-tab--active' : ''}`}
-            onClick={() => onSetGuidedStep(step)}
-          >
-            {step.charAt(0).toUpperCase() + step.slice(1)}
-          </button>
-        ))}
-      </div>
 
       <div className="wt-families-container">
         {visibleFamilies.map((family) => (

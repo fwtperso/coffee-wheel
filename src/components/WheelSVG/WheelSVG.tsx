@@ -80,23 +80,8 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
   let familyAngleOffset = 0;
 
   return (
-    <div>
-      <div className="wheel-search">
-        <input
-          className="wheel-search__input"
-          type="text"
-          placeholder="Search flavors..."
-          value={session.reverseQuery}
-          onChange={e => onSetReverseQuery(e.target.value)}
-        />
-        {hasSearch && (
-          <button className="wheel-search__clear" onClick={() => onSetReverseQuery('')}>
-            Clear
-          </button>
-        )}
-      </div>
-
-      <svg viewBox="0 0 700 700" width="100%" style={{ maxWidth: 700, display: 'block', margin: '0 auto' }}>
+    <div style={{ width: '100%', height: '100%' }}>
+      <svg viewBox="0 0 700 700" width="100%" height="100%">
         <defs>
           <filter id="glow-selected">
             <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#fff" floodOpacity="0.8" />
@@ -238,18 +223,6 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
           );
         })}
       </svg>
-
-      <div className="wheel-guided-tabs">
-        {(['aroma', 'flavor', 'finish'] as GuidedStep[]).map(step => (
-          <button
-            key={step}
-            className={`wheel-guided-tabs__btn${session.guidedStep === step ? ' wheel-guided-tabs__btn--active' : ''}`}
-            onClick={() => onSetGuidedStep(step)}
-          >
-            {step.charAt(0).toUpperCase() + step.slice(1)}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

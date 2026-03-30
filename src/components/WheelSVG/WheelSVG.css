@@ -31,58 +31,6 @@
   stroke-width: 3;
 }
 
-.wheel-search {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  justify-content: center;
-}
-
-.wheel-search__input {
-  padding: 8px 14px;
-  border: 2px solid #ccc;
-  border-radius: 8px;
-  font-size: 14px;
-  width: 240px;
-  outline: none;
-}
-
-.wheel-search__input:focus {
-  border-color: #2C3E50;
-}
-
-.wheel-search__clear {
-  padding: 8px 14px;
-  border: 2px solid #ccc;
-  border-radius: 8px;
-  background: white;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.wheel-guided-tabs {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-  justify-content: center;
-}
-
-.wheel-guided-tabs__btn {
-  padding: 8px 20px;
-  border: 2px solid #ccc;
-  border-radius: 8px;
-  background: white;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.wheel-guided-tabs__btn--active {
-  border-color: #2C3E50;
-  background: #2C3E50;
-  color: white;
-}
-
 .wheel-label {
   pointer-events: none;
   user-select: none;
