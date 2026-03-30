@@ -218,6 +218,32 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
   const hasSearch = session.reverseQuery.length > 0;
   const relevantFamilies = GUIDED_MAP[session.guidedStep];
 
+  const activeFamilyIds = useMemo(() => {
+    if (session.selectedNoteIds.length === 0) return new Set<string>();
+    const ids = new Set<string>();
+    for (const family of FLAVOR_WHEEL) {
+      for (const sub of family.subCategories) {
+        if (sub.notes.some(n => session.selectedNoteIds.includes(n.id))) {
+          ids.add(family.id);
+        }
+      }
+    }
+    return ids;
+  }, [session.selectedNoteIds]);
+
+  const activeSubIds = useMemo(() => {
+    if (session.selectedNoteIds.length === 0) return new Set<string>();
+    const ids = new Set<string>();
+    for (const family of FLAVOR_WHEEL) {
+      for (const sub of family.subCategories) {
+        if (sub.notes.some(n => session.selectedNoteIds.includes(n.id))) {
+          ids.add(sub.id);
+        }
+      }
+    }
+    return ids;
+  }, [session.selectedNoteIds]);
+
   const totalNotes = FLAVOR_WHEEL.reduce(
     (sum, f) => sum + f.subCategories.reduce((s2, sc) => s2 + sc.notes.length, 0),
     0,
@@ -272,7 +298,7 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
               {/* Inner ring: family segment */}
               <path
                 data-testid={`family-${family.id}`}
-                className={`wheel-segment${guidedDim ? ' wheel-segment--guided-dim' : ''}`}
+                className={`wheel-segment${guidedDim ? ' wheel-segment--guided-dim' : hasSelection ? (activeFamilyIds.has(family.id) ? ' wheel-segment--branch-active' : ' wheel-segment--dimmed') : ''}`}
                 d={arcPath(CX, CY, R_INNER_START, R_INNER_END, familyStart, familyEnd)}
                 fill={family.color}
                 stroke="#fff"
@@ -309,7 +335,7 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
                   <g key={sub.id}>
                     <path
                       data-testid={`sub-${sub.id}`}
-                      className={`wheel-segment${guidedDim ? ' wheel-segment--guided-dim' : ''}`}
+                      className={`wheel-segment${guidedDim ? ' wheel-segment--guided-dim' : hasSelection ? (activeSubIds.has(sub.id) ? ' wheel-segment--branch-active' : ' wheel-segment--dimmed') : ''}`}
                       d={arcPath(CX, CY, R_MID_START, R_MID_END, subStart, subEnd)}
                       fill={subColor}
                       stroke="#fff"

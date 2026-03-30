@@ -12,8 +12,14 @@
   filter: brightness(1.15);
 }
 
+.wheel-segment--branch-active {
+  opacity: 1;
+  filter: brightness(1.15);
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
 .wheel-segment--dimmed {
-  opacity: 0.5;
+  opacity: 0.2;
 }
 
 .wheel-segment--guided-dim {
