@@ -171,29 +171,6 @@ export default function WheelAura({
 
   return (
     <div className="wheel-aura">
-      <div className="wheel-aura__controls">
-        <input
-          className="wheel-aura__search"
-          type="text"
-          placeholder="Search flavors..."
-          value={session.reverseQuery}
-          onChange={e => onSetReverseQuery(e.target.value)}
-        />
-        <div className="wheel-aura__guided-tabs">
-          {GUIDED_LABELS.map(({ step, label }) => (
-            <button
-              key={step}
-              className={`wheel-aura__guided-tab${
-                session.guidedStep === step ? ' wheel-aura__guided-tab--active' : ''
-              }`}
-              onClick={() => onSetGuidedStep(step)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <svg
         className="wheel-aura__svg"
         viewBox="0 0 600 600"
