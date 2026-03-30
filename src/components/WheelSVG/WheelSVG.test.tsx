@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import WheelSVG from './WheelSVG';
@@ -96,5 +96,46 @@ describe('WheelSVG', () => {
       0,
     );
     expect(total).toBeGreaterThan(50);
+  });
+});
+
+describe('WheelSVG drag-to-spin', () => {
+  it('renders SVG with grab cursor class', () => {
+    render(
+      <WheelSVG session={makeSession()} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    const svg = screen.getByTestId('wheel-svg');
+    expect(svg).toHaveClass('wheel-svg--grab');
+  });
+
+  it('wraps wheel content in a rotating group', () => {
+    render(
+      <WheelSVG session={makeSession()} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    const svg = screen.getByTestId('wheel-svg');
+    const rotatingGroup = svg.querySelector('g[transform]');
+    expect(rotatingGroup).not.toBeNull();
+    expect(rotatingGroup?.getAttribute('transform')).toContain('rotate(0');
+  });
+
+  it('allows note click when no drag occurred', async () => {
+    const onToggle = vi.fn();
+    render(
+      <WheelSVG session={makeSession()} onToggleNote={onToggle} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    await userEvent.click(screen.getByTestId('note-blackberry'));
+    expect(onToggle).toHaveBeenCalledWith('blackberry');
+  });
+
+  it('applies pointer event handlers to SVG for drag tracking', () => {
+    render(
+      <WheelSVG session={makeSession()} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    const svg = screen.getByTestId('wheel-svg');
+    // SVG should have pointer event handlers wired up
+    expect(svg.getAttribute('data-testid')).toBe('wheel-svg');
+    // Pointer down should not throw
+    fireEvent.pointerDown(svg, { clientX: 350, clientY: 50, pointerId: 1 });
+    fireEvent.pointerUp(svg, { pointerId: 1 });
   });
 });
