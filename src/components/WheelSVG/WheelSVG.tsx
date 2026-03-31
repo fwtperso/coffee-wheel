@@ -198,6 +198,39 @@ function useWheelSpin() {
   };
 }
 
+interface NoteLayout {
+  noteId: string;
+  familyId: string;
+  familyColor: string;
+  subId: string;
+  noteLabel: string;
+  noteColor: string;
+  noteStart: number;
+  noteEnd: number;
+  noteMidAngle: number;
+  midX: number;
+  midY: number;
+  externalLabelPos: { x: number; y: number };
+}
+
+interface SubLayout {
+  subId: string;
+  subLabel: string;
+  subColor: string;
+  subStart: number;
+  subEnd: number;
+  notes: NoteLayout[];
+}
+
+interface FamilyLayout {
+  familyId: string;
+  familyColor: string;
+  familyLabel: string;
+  familyStart: number;
+  familyEnd: number;
+  subCategories: SubLayout[];
+}
+
 export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSetReverseQuery }: WheelSVGProps) {
   const {
     rotationDeg,
@@ -208,6 +241,59 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
     onPointerUp,
     shouldSuppressClick,
   } = useWheelSpin();
+
+  const layout = useMemo(() => {
+    const totalNotes = FLAVOR_WHEEL.reduce(
+      (sum, f) => sum + f.subCategories.reduce((s, sc) => s + sc.notes.length, 0), 0,
+    );
+    const families: FamilyLayout[] = [];
+    let familyAngleOffset = 0;
+
+    for (const family of FLAVOR_WHEEL) {
+      const familyNoteCount = family.subCategories.reduce((s, sc) => s + sc.notes.length, 0);
+      const familySpan = (familyNoteCount / totalNotes) * 360;
+      const familyStart = familyAngleOffset;
+      const familyEnd = familyStart + familySpan;
+      familyAngleOffset = familyEnd;
+
+      const subs: SubLayout[] = [];
+      let subAngleOffset = familyStart;
+
+      for (const sub of family.subCategories) {
+        const subSpan = (sub.notes.length / totalNotes) * 360;
+        const subStart = subAngleOffset;
+        const subEnd = subStart + subSpan;
+        subAngleOffset = subEnd;
+        const noteAngleSize = subSpan / sub.notes.length;
+        const notes: NoteLayout[] = sub.notes.map((note, ni) => {
+          const noteStart = subStart + ni * noteAngleSize;
+          const noteEnd = noteStart + noteAngleSize;
+          const nMidAngle = midAngle(noteStart, noteEnd);
+          const midR = (R_OUTER_START + R_OUTER_END) / 2;
+          const { x: midX, y: midY } = polarToCartesian(CX, CY, midR, nMidAngle);
+          return {
+            noteId: note.id,
+            familyId: family.id,
+            familyColor: family.color,
+            subId: sub.id,
+            noteLabel: note.label,
+            noteColor: lightenColor(family.color, 0.4),
+            noteStart,
+            noteEnd,
+            noteMidAngle: nMidAngle,
+            midX,
+            midY,
+            externalLabelPos: polarToCartesian(CX, CY, R_LABEL, nMidAngle),
+          };
+        });
+        subs.push({ subId: sub.id, subLabel: sub.label, subColor: lightenColor(family.color, 0.25), subStart, subEnd, notes });
+      }
+      families.push({ familyId: family.id, familyColor: family.color, familyLabel: family.label, familyStart, familyEnd, subCategories: subs });
+    }
+    return families;
+  }, []);
+
+  const allNoteLayouts = useMemo(() => layout.flatMap(f => f.subCategories.flatMap(s => s.notes)), [layout]);
 
   const matchingNoteIds = useMemo(() => {
     if (!session.reverseQuery) return new Set<string>();
@@ -244,17 +330,20 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
     return ids;
   }, [session.selectedNoteIds]);
 
-  const totalNotes = FLAVOR_WHEEL.reduce(
-    (sum, f) => sum + f.subCategories.reduce((s2, sc) => s2 + sc.notes.length, 0),
-    0,
-  );
-
   const handleNoteClick = useCallback((noteId: string) => {
     if (shouldSuppressClick()) return;
     onToggleNote(noteId);
   }, [shouldSuppressClick, onToggleNote]);
 
-  let familyAngleOffset = 0;
+  const selectedFamilyColors = useMemo(() => {
+    const colors: string[] = [];
+    for (const n of allNoteLayouts) {
+      if (session.selectedNoteIds.includes(n.noteId) && !colors.includes(n.familyColor)) {
+        colors.push(n.familyColor);
+      }
+    }
+    return colors;
+  }, [allNoteLayouts, session.selectedNoteIds]);
 
   return (
     <div style={{ width: '100%', height: '100%' }}>
@@ -280,27 +369,19 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
         {/* White center circle */}
         <circle cx={CX} cy={CY} r={R_INNER_START} fill="#fff" />
 
-        {FLAVOR_WHEEL.map((family) => {
-          const familyNoteCount = family.subCategories.reduce((s, sc) => s + sc.notes.length, 0);
-          const familySpan = (familyNoteCount / totalNotes) * 360;
-          const familyStart = familyAngleOffset;
-          const familyEnd = familyAngleOffset + familySpan;
-          familyAngleOffset = familyEnd;
-
-          const guidedDim = !relevantFamilies.includes(family.id);
-          const familyMidAngle = midAngle(familyStart, familyEnd);
+        {layout.map((family) => {
+          const guidedDim = !relevantFamilies.includes(family.familyId);
+          const familyMidAngle = midAngle(family.familyStart, family.familyEnd);
           const familyLabelPos = polarToCartesian(CX, CY, (R_INNER_START + R_INNER_END) / 2, familyMidAngle);
 
-          let subAngleOffset = familyStart;
-
           return (
-            <g key={family.id}>
+            <g key={family.familyId}>
               {/* Inner ring: family segment */}
               <path
-                data-testid={`family-${family.id}`}
-                className={`wheel-segment${guidedDim ? ' wheel-segment--guided-dim' : hasSelection ? (activeFamilyIds.has(family.id) ? ' wheel-segment--branch-active' : ' wheel-segment--dimmed') : ''}`}
-                d={arcPath(CX, CY, R_INNER_START, R_INNER_END, familyStart, familyEnd)}
-                fill={family.color}
+                data-testid={`family-${family.familyId}`}
+                className={`wheel-segment${guidedDim ? ' wheel-segment--guided-dim' : hasSelection ? (activeFamilyIds.has(family.familyId) ? ' wheel-segment--branch-active' : ' wheel-segment--dimmed') : ''}`}
+                d={arcPath(CX, CY, R_INNER_START, R_INNER_END, family.familyStart, family.familyEnd)}
+                fill={family.familyColor}
                 stroke="#fff"
                 strokeWidth={2}
               />
@@ -315,29 +396,21 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
                 fontSize={12}
                 transform={`rotate(${labelRotation(familyMidAngle - 90)}, ${familyLabelPos.x}, ${familyLabelPos.y})`}
               >
-                {family.label}
+                {family.familyLabel}
               </text>
 
               {/* Middle ring: sub-category segments */}
               {family.subCategories.map((sub) => {
-                const subSpan = (sub.notes.length / totalNotes) * 360;
-                const subStart = subAngleOffset;
-                const subEnd = subAngleOffset + subSpan;
-                subAngleOffset = subEnd;
-
-                const subMidAngle = midAngle(subStart, subEnd);
+                const subMidAngle = midAngle(sub.subStart, sub.subEnd);
                 const subLabelPos = polarToCartesian(CX, CY, (R_MID_START + R_MID_END) / 2, subMidAngle);
-                const subColor = lightenColor(family.color, 0.25);
-
-                const noteAngleSize = subSpan / sub.notes.length;
 
                 return (
-                  <g key={sub.id}>
+                  <g key={sub.subId}>
                     <path
-                      data-testid={`sub-${sub.id}`}
-                      className={`wheel-segment${guidedDim ? ' wheel-segment--guided-dim' : hasSelection ? (activeSubIds.has(sub.id) ? ' wheel-segment--branch-active' : ' wheel-segment--dimmed') : ''}`}
-                      d={arcPath(CX, CY, R_MID_START, R_MID_END, subStart, subEnd)}
-                      fill={subColor}
+                      data-testid={`sub-${sub.subId}`}
+                      className={`wheel-segment${guidedDim ? ' wheel-segment--guided-dim' : hasSelection ? (activeSubIds.has(sub.subId) ? ' wheel-segment--branch-active' : ' wheel-segment--dimmed') : ''}`}
+                      d={arcPath(CX, CY, R_MID_START, R_MID_END, sub.subStart, sub.subEnd)}
+                      fill={sub.subColor}
                       stroke="#fff"
                       strokeWidth={2}
                     />
@@ -351,17 +424,13 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
                       fontSize={9}
                       transform={`rotate(${labelRotation(subMidAngle - 90)}, ${subLabelPos.x}, ${subLabelPos.y})`}
                     >
-                      {sub.label}
+                      {sub.subLabel}
                     </text>
 
-                    {/* Outer ring: note segments + external labels */}
-                    {sub.notes.map((note, ni) => {
-                      const noteStart = subStart + ni * noteAngleSize;
-                      const noteEnd = noteStart + noteAngleSize;
-                      const noteMidAngle = midAngle(noteStart, noteEnd);
-                      const noteColor = lightenColor(family.color, 0.4);
-                      const isSelected = session.selectedNoteIds.includes(note.id);
-                      const isMatch = hasSearch && matchingNoteIds.has(note.id);
+                    {/* Outer ring: note segments */}
+                    {sub.notes.map((note) => {
+                      const isSelected = session.selectedNoteIds.includes(note.noteId);
+                      const isMatch = hasSearch && matchingNoteIds.has(note.noteId);
                       const isDimmedBySelection = hasSelection && !isSelected;
                       const isDimmedBySearch = hasSearch && !isMatch;
 
@@ -371,38 +440,18 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
                       if (isMatch) cls += ' wheel-segment--highlighted';
                       if (guidedDim) cls += ' wheel-segment--guided-dim';
 
-                      const externalLabelPos = polarToCartesian(CX, CY, R_LABEL, noteMidAngle);
-                      const rawRotation = noteMidAngle - 90;
-                      const normalized = ((noteMidAngle % 360) + 360) % 360;
-                      const flipLabel = normalized > 90 && normalized < 270;
-                      const textRotation = flipLabel ? rawRotation + 180 : rawRotation;
-                      const textAnchor = flipLabel ? 'end' : 'start';
-
                       return (
-                        <g key={note.id}>
-                          <path
-                            data-testid={`note-${note.id}`}
-                            className={cls}
-                            d={arcPath(CX, CY, R_OUTER_START, R_OUTER_END, noteStart, noteEnd)}
-                            fill={noteColor}
-                            stroke="#fff"
-                            strokeWidth={2}
-                            filter={isSelected ? 'url(#glow-selected)' : undefined}
-                            onClick={() => handleNoteClick(note.id)}
-                          />
-                          <text
-                            className="wheel-label wheel-label--external"
-                            x={externalLabelPos.x}
-                            y={externalLabelPos.y}
-                            textAnchor={textAnchor}
-                            dominantBaseline="central"
-                            fill={family.color}
-                            fontSize={10}
-                            transform={`rotate(${textRotation}, ${externalLabelPos.x}, ${externalLabelPos.y})`}
-                          >
-                            {note.label}
-                          </text>
-                        </g>
+                        <path
+                          key={note.noteId}
+                          data-testid={`note-${note.noteId}`}
+                          className={cls}
+                          d={arcPath(CX, CY, R_OUTER_START, R_OUTER_END, note.noteStart, note.noteEnd)}
+                          fill={note.noteColor}
+                          stroke="#fff"
+                          strokeWidth={2}
+                          filter={isSelected ? 'url(#glow-selected)' : undefined}
+                          onClick={() => handleNoteClick(note.noteId)}
+                        />
                       );
                     })}
                   </g>
@@ -411,8 +460,85 @@ export default function WheelSVG({ session, onToggleNote, onSetGuidedStep, onSet
             </g>
           );
         })}
+
+        {/* Aura glow layer */}
+        <defs>
+          {allNoteLayouts
+            .filter(n => session.selectedNoteIds.includes(n.noteId))
+            .map(n => (
+              <radialGradient
+                key={`aura-grad-${n.noteId}`}
+                id={`aura-grad-${n.noteId}`}
+                cx={n.midX}
+                cy={n.midY}
+                r={120}
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset="0%" stopColor={n.familyColor} stopOpacity={0.65} />
+                <stop offset="100%" stopColor={n.familyColor} stopOpacity={0} />
+              </radialGradient>
+            ))}
+        </defs>
+        <g style={{ mixBlendMode: 'screen' as const, pointerEvents: 'none' }}>
+          {allNoteLayouts
+            .filter(n => session.selectedNoteIds.includes(n.noteId))
+            .map(n => (
+              <rect
+                key={`aura-${n.noteId}`}
+                x={0} y={0} width={700} height={700}
+                fill={`url(#aura-grad-${n.noteId})`}
+                data-testid={`aura-${n.noteId}`}
+              />
+            ))}
+        </g>
+
+        {/* External labels */}
+        {layout.map((family) => (
+          <g key={`labels-${family.familyId}`}>
+            {family.subCategories.map((sub) =>
+              sub.notes.map((note) => {
+                const rawRotation = note.noteMidAngle - 90;
+                const normalized = ((note.noteMidAngle % 360) + 360) % 360;
+                const flipLabel = normalized > 90 && normalized < 270;
+                const textRotation = flipLabel ? rawRotation + 180 : rawRotation;
+                const textAnchor = flipLabel ? 'end' : 'start';
+
+                return (
+                  <text
+                    key={`label-${note.noteId}`}
+                    className="wheel-label wheel-label--external"
+                    x={note.externalLabelPos.x}
+                    y={note.externalLabelPos.y}
+                    textAnchor={textAnchor}
+                    dominantBaseline="central"
+                    fill={note.familyColor}
+                    fontSize={10}
+                    transform={`rotate(${textRotation}, ${note.externalLabelPos.x}, ${note.externalLabelPos.y})`}
+                  >
+                    {note.noteLabel}
+                  </text>
+                );
+              })
+            )}
+          </g>
+        ))}
         </g>
       </svg>
+
+      {/* Signature panel */}
+      <div className="wheel-signature" data-testid="signature-panel">
+        {selectedFamilyColors.length > 0 ? (
+          <>
+            <div
+              className="wheel-signature__bar"
+              style={{ background: `linear-gradient(to right, ${selectedFamilyColors.join(', ')})` }}
+            />
+            <span className="wheel-signature__label">Your tasting signature</span>
+          </>
+        ) : (
+          <span className="wheel-signature__empty">Select notes to build your tasting signature</span>
+        )}
+      </div>
     </div>
   );
 }
