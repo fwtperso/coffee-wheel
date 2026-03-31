@@ -1,4 +1,4 @@
-export type VisualMode = 'wheel' | 'aura' | 'type';
+export type VisualMode = 'wheel' | 'type';
 
 export type GuidedStep = 'aroma' | 'flavor' | 'finish';
 

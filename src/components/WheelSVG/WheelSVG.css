@@ -60,3 +60,34 @@
   cursor: grabbing;
   touch-action: none;
 }
+
+.wheel-signature {
+  width: 100%;
+  max-width: 600px;
+  margin: 12px auto 0;
+  height: 48px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.wheel-signature__bar {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+}
+.wheel-signature__label {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  font-weight: 600;
+  font-size: 14px;
+}
+.wheel-signature__empty {
+  color: #999;
+  font-size: 13px;
+}

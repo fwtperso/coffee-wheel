@@ -135,6 +135,29 @@ describe('WheelSVG branch highlight', () => {
   });
 });
 
+describe('WheelSVG aura glow', () => {
+  it('renders an aura element when a note is selected', () => {
+    render(
+      <WheelSVG session={makeSession({ selectedNoteIds: ['blackberry'] })} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    expect(screen.getByTestId('aura-blackberry')).toBeTruthy();
+  });
+
+  it('signature panel shows label when notes are selected', () => {
+    render(
+      <WheelSVG session={makeSession({ selectedNoteIds: ['blackberry'] })} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    expect(screen.getByText('Your tasting signature')).toBeTruthy();
+  });
+
+  it('signature panel shows empty state when no notes selected', () => {
+    render(
+      <WheelSVG session={makeSession()} onToggleNote={noop} onSetGuidedStep={noop} onSetReverseQuery={noop} />
+    );
+    expect(screen.getByText('Select notes to build your tasting signature')).toBeTruthy();
+  });
+});
+
 describe('WheelSVG drag-to-spin', () => {
   it('renders SVG with grab cursor class', () => {
     render(
